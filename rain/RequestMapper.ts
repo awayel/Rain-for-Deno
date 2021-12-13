@@ -60,9 +60,6 @@ const getRequestParams = async (req: Request, paramsMap: Map<number, ParamInfo>)
             }
         }
     }
-    // console.log("=============");
-    // console.log("参数:" + paramsList);
-    // console.log("=============");
 
     return paramsList;
 }
