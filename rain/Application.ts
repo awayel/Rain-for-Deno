@@ -22,7 +22,7 @@ class Application {
     }
     startServe() {
         const port = this.ApplicationServe.getConfiguration().port;
-        console.log(`服务器已运行：%chttp://localhost:${port}/`, "color:#00c920");
+        console.log(`server run at ：%chttp://localhost:${port}/`, "color:#00c920");
         serve((req: Request) => {
             return this.requestMapper.mapRequest(req);
         }, { addr: `:${port}` });
