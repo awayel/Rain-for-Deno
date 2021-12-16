@@ -1,8 +1,8 @@
-import { Controller, GetMapping, PostMapping, Value, AutoWired, Param } from '../../rain/Decorators.ts'
+import { Controller, GetMapping, PostMapping, Value, AutoWired, Param } from '../../rain/index.ts';
 import UserService from '../service/UserService.ts'
 
 @Controller("/api")
-class UserController {
+class ApiController {
     @Value("Ding")
     private name!: string;
 
@@ -21,7 +21,7 @@ class UserController {
         }
     }
 
-    
+
     @PostMapping("/post")
     public postUserInfo(
         @Param("userName", "string") userName: string,
@@ -34,6 +34,7 @@ class UserController {
             type: "post"
         }
     }
+
 }
 
-export default UserController;
+export default ApiController;

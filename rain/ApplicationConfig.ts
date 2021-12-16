@@ -1,4 +1,4 @@
-class Configure {
+class ApplicationConfig {
     //port
     port: number = 8000;
 
@@ -9,3 +9,5 @@ class Configure {
     src: string = "/src";
 
 }
+
+export default ApplicationConfig;

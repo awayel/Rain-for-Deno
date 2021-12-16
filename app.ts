@@ -1,3 +1,3 @@
-import serveStart from "./rain/index.ts"
+import Application from "./rain/index.ts"
 
-serveStart();
+const application = new Application();

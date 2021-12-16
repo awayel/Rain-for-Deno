@@ -1,4 +1,4 @@
-import { Service } from '../../rain/Decorators.ts'
+import { Service } from '../../rain/index.ts'
 @Service
 class UserService {
     public userName: string = "Ling";
