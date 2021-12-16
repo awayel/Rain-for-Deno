@@ -22,7 +22,7 @@ class Application {
     }
     startServe() {
         const port = this.ApplicationServe.getConfiguration().port;
-        console.log(`server run at ：%chttp://localhost:${port}/`, "color:#00c920");
+        console.log(`Application running at ：%chttp://localhost:${port}/`, "color:#00c920");
         serve((req: Request) => {
             return this.requestMapper.mapRequest(req);
         }, { addr: `:${port}` });
