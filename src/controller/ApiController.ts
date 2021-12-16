@@ -10,7 +10,12 @@ class ApiController {
     private userService!: UserService;
 
     @GetMapping("/get")
-    public getUserInfo() {
+    public getUserInfo(
+        @Param("star", "number") star: number,
+        @Param("ddd") ddd: number
+    ) {
+        console.log(star);
+        console.log(ddd);
         return {
             code: 200,
             message: "获取成功",
@@ -24,8 +29,8 @@ class ApiController {
 
     @PostMapping("/post")
     public postUserInfo(
-        @Param("userName", "string") userName: string,
-        @Param("upwd") name: string
+        @Param("ddd", "string") userName: string,
+        @Param("ddd2") name: string
     ) {
         console.log(userName, name);
         return {

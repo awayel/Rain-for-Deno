@@ -6,7 +6,8 @@ import {
     Value,
     AutoWired,
     Service,
-    Param
+    Param,
+    Config
 } from './ApplicationServe.ts'
 
 
@@ -18,5 +19,6 @@ export {
     Value,
     AutoWired,
     Service,
-    Param
+    Param,
+    Config
 }

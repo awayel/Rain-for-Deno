@@ -15,6 +15,11 @@ interface PathMapper {
     params: Map<number, ParamInfo>;
 }
 
+interface ApplicationConfig {
+    port?: number;
+    static?: string;
+}
+
 class PathMember {
     private path: string = "";
     private children: Array<MappingMember> = [];
@@ -63,6 +68,10 @@ class ApplicationServe {
     private autoWiredMap = autoWiredMap;
     private valueMap = valueMap;
     private rainContainer: Map<string, PathMapper> = new Map<string, PathMapper>();
+    private configuration: ApplicationConfig = {
+        port: 8000,
+        static: "/static"
+    };
 
     public getPathMap() {
         return this.pathMap;
@@ -78,6 +87,13 @@ class ApplicationServe {
     }
     public getRainContainer() {
         return this.rainContainer;
+    }
+    public getConfiguration() {
+        return this.configuration;
+    }
+    public setConfiguration(configuration: ApplicationConfig) {
+        if (configuration.port) this.configuration.port = configuration.port;
+        if (configuration.static) this.configuration.static = configuration.static;
     }
 
     public init() {
@@ -129,7 +145,6 @@ const initPathMapper = (pathMap: Map<Object, PathMember>, mapperName: string, pr
 
 const mapping = (path: string, method: string) => {
     return (proto: any, key: string) => {
-        console.log("初始mappering:  " + key);
         const mapper = initPathMapper(pathMap, proto.constructor.name, proto);
         mapper.addChildren({
             name: key,
@@ -151,7 +166,7 @@ const valueMapping = (map: Map<any, Map<string, any>>, proto: any) => {
 
 const Controller = <T extends new (...args: any[]) => {}>(path: string) => {
     return (constructor: T) => {
-        // console.log("初始Controller:  " + constructor.name);
+        console.log("loading[Controller]:  " + constructor.name);
         const mapper = initPathMapper(pathMap, constructor.name, constructor.prototype);
         mapper.setPath(path);
     }
@@ -178,7 +193,6 @@ const Service = <T extends new (...args: any[]) => {}>(constructor: T) => {
 
 const Param = (paramName: string, paramType?: string) => {
     return (proto: any, functionKey: string, paramIndex: number) => {
-        console.log("初始params:  " + functionKey);
         const mapper = initPathMapper(pathMap, proto.constructor.name, proto);
         const paramsMap = mapper.getParamsMap();
         let functionParamsMap = paramsMap.get(functionKey);
@@ -193,6 +207,10 @@ const Param = (paramName: string, paramType?: string) => {
     }
 }
 
+const Config = <T extends new (...args: any[]) => {}>(constructor: T) => {
+
+}
+
 
 export {
     PathMember,
@@ -202,8 +220,9 @@ export {
     Value,
     AutoWired,
     Service,
-    Param
+    Param,
+    Config
 };
-export type { MappingMember, ParamInfo, PathMapper };
+export type { MappingMember, ParamInfo, PathMapper, ApplicationConfig };
 
 export default ApplicationServe;

@@ -7,6 +7,7 @@
 ## 使用说明
 
 依赖：安装Deno： https://deno.land/
+
 1. git clone https://github.com/awayel/Rain-for-Deno.git
 2. deno run --allow-net --allow-read --allow-write app.ts
 

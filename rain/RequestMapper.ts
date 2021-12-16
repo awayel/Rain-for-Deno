@@ -12,14 +12,10 @@ class RequestMapper {
 
     //参数类型转换
     parseParamsType(value: any, type: string) {
-        if (typeof value === "string") {
-            if (type === "number") {
-                return new Number(value);
-            } else if (type === "string") {
-                return value;
-            } else {
-                return value;
-            }
+        if (type === "number") {
+            return Number(value);
+        } else if (type === "string") {
+            return value + "";
         } else {
             return value;
         }
@@ -34,12 +30,16 @@ class RequestMapper {
             if (contentType === "application/json") {
                 const stream = await req.body?.getReader().read();
                 if (stream?.value) {
-                    const body = JSON.parse(this.decoder.decode(stream?.value));
-                    for (const [key, paramInfo] of paramsMap) {
-                        paramsList[key] = this.parseParamsType(body[paramInfo.paramName], paramInfo.paramType);
+                    const json = this.decoder.decode(stream?.value);
+                    try {
+                        const body = JSON.parse(json);
+                        for (const [key, paramInfo] of paramsMap) {
+                            paramsList[key] = this.parseParamsType(body[paramInfo.paramName], paramInfo.paramType);
+                        }
+                    } catch (error) {
+                        throw new Error("JSON error: " + json);
                     }
                 }
-                // const reader = req.body?.getReader();
             }
             if (contentType?.includes("multipart/form-data;")) {
                 const stream = await req.body?.getReader().read();
@@ -64,7 +64,26 @@ class RequestMapper {
                 }
             }
         } else if (method === "GET") {
-            console.log(url);
+            const queryStringReg = /(?<=^(https?|ws):\/\/?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?((\/\w+)+\/?)?\?)([\w$_]+(=[%\w]+)?&?)+$/g;
+            const queryStringMatchResult = url.match(queryStringReg);
+            if (queryStringMatchResult) {
+                const queryString = queryStringMatchResult[0];
+                const queryStringItemList = queryString.split("&");
+                const queryList: Array<Array<string>> = [];
+                queryStringItemList.forEach(query => {
+                    queryList.push(query.split("="));
+                })
+                const body: any = {};
+                for (let i = 0; i < queryList.length; i++) {
+                    const query = queryList[i];
+                    if (query[0]) {
+                        body[query[0]] = query[1] ?? undefined;
+                    }
+                }
+                for (const [key, paramInfo] of paramsMap) {
+                    paramsList[key] = this.parseParamsType(body[paramInfo.paramName], paramInfo.paramType);
+                }
+            }
         }
         return paramsList;
     }
@@ -76,8 +95,14 @@ class RequestMapper {
         const mapper = this.rainContainer.get("#" + method + "#" + path);
         let result: Object;
         if (mapper) {
-            const paramsList = await this.getRequestParams(req, mapper.params);
-            result = (mapper.target as any)[mapper.fn](...paramsList);
+            try {
+                const paramsList = await this.getRequestParams(req, mapper.params);
+                result = (mapper.target as any)[mapper.fn](...paramsList);
+            } catch (error) {
+                return new Response(error, {
+                    status: 400
+                });
+            }
         }
         else {
             return new Response("404 not found", {
@@ -94,7 +119,7 @@ class RequestMapper {
         // 判断静态资源
         if (urlMatchStaticSource) {
             const staticeSourcePath = (this.basePath + this.staticeDir + urlMatchStaticSource[0]).replaceAll(/\//ig, "\\");
-            console.log("静态资源：", staticeSourcePath);
+            // console.log("静态资源：", staticeSourcePath);
             try {
                 const resource = Deno.readFileSync(staticeSourcePath);
                 const fileType = urlMatchStaticSource[0].match(/(?<=\.)\w+$/)![0];
@@ -109,18 +134,22 @@ class RequestMapper {
                 });
             }
         }
-        // 去除queryString参数
-        let matchPathResult = url.match(/(?<=(^(https?|ws):\/\/)?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?)(\/\w+)+\/?$/ig);
-        let matchPath = "/"
-        if (matchPathResult) {
-            matchPath = matchPathResult[0];
-            matchPath = matchPath.replace(/\/$/, "");
+        // 去除queryString
+        const queryStringReg = /(?<=^(https?|ws):\/\/?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?((\/\w+)+\/?)?)\?.*/g;
+        const path = url.replace(queryStringReg, "");
+        // 获取path
+        let pathMatchResult = path.match(/(?<=(^(https?|ws):\/\/)?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?)(\/\w+)+\/?$/ig);
+        // console.log(path);
+        let pathMatch = ""
+        if (pathMatchResult) {
+            pathMatch = pathMatchResult[0];
+            pathMatch = pathMatch.replace(/\/$/, "");
         } else {
             return new Response("404 not found", {
                 status: 404
             });
         }
-        return this.servelet(req, matchPath);
+        return this.servelet(req, pathMatch);
     }
 
 }
