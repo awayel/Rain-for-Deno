@@ -11,8 +11,10 @@
 
 ## example 例如：
 
-import { Controller, GetMapping, PostMapping, Value, AutoWired, Param } from
-'../../rain/Decorators.ts' import UserService from '../service/UserService.ts'
+
+```typescript
+import { Controller, GetMapping, PostMapping, Value, AutoWired, Param } from '../../rain/index.ts' 
+import UserService from '../service/UserService.ts'
 
 @Controller("/api") class UserController { @Value("Ding") private name!: string;
 
@@ -48,3 +50,4 @@ import { Controller, GetMapping, PostMapping, Value, AutoWired, Param } from
 }
 
 export default UserController;
+```
