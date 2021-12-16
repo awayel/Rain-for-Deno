@@ -17,7 +17,10 @@
 import { Controller, GetMapping, PostMapping, Value, AutoWired, Param } from '../../rain/index.ts' 
 import UserService from '../service/UserService.ts'
 
-@Controller("/api") class UserController { @Value("Ding") private name!: string;
+@Controller("/api") 
+class UserController { 
+    
+    @Value("Ding") private name!: string;
 
     @AutoWired(UserService)
     private userService!: UserService;
