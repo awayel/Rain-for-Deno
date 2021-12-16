@@ -6,7 +6,8 @@
 
 ## 使用说明
 
-依赖：安装Deno： https://deno.land/
+依赖：
+Deno： https://deno.land/
 
 1. git clone https://github.com/awayel/Rain-for-Deno.git
 2. deno run --allow-net --allow-read --allow-write app.ts
@@ -15,22 +16,27 @@
 
 
 ```typescript
-import { Controller, GetMapping, PostMapping, Value, AutoWired, Param } from '../../rain/index.ts' 
+import { Controller, GetMapping, PostMapping, Value, AutoWired, Param } from '../../rain/index.ts';
 import UserService from '../service/UserService.ts'
 
-@Controller("/api") 
-class UserController { 
-    
-    @Value("Ding") private name!: string;
+@Controller("/api")
+class ApiController {
+    @Value("Ding")
+    private name!: string;
 
     @AutoWired(UserService)
     private userService!: UserService;
 
     @GetMapping("/get")
-    public getUserInfo() {
+    public getUserInfo(
+        @Param("star", "number") star: number,
+        @Param("ddd") ddd: number
+    ) {
+        console.log(star);
+        console.log(ddd);
         return {
             code: 200,
-            message: "success",
+            message: "获取成功",
             data: {
                 name: this.name,
                 userInfo: this.userService
@@ -41,18 +47,18 @@ class UserController {
 
     @PostMapping("/post")
     public postUserInfo(
-        @Param("userName", "string") userName: string,
-        @Param("upwd") name: string
+        @Param("ddd", "string") userName: string,
+        @Param("ddd2") name: string
     ) {
         console.log(userName, name);
         return {
             code: 200,
-            message: "success",
+            message: "获取成功",
             type: "post"
         }
     }
 
 }
 
-export default UserController;
+export default ApiController;
 ```

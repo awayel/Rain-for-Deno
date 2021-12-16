@@ -207,10 +207,6 @@ const Param = (paramName: string, paramType?: string) => {
     }
 }
 
-const Config = <T extends new (...args: any[]) => {}>(constructor: T) => {
-
-}
-
 
 export {
     PathMember,
@@ -220,8 +216,7 @@ export {
     Value,
     AutoWired,
     Service,
-    Param,
-    Config
+    Param
 };
 export type { MappingMember, ParamInfo, PathMapper, ApplicationConfig };
 
