@@ -128,6 +128,7 @@ class RequestMapper {
         const staticeSourcePath = this.basePath + this.staticeDir + fileSource;
         try {
             const resource = Deno.readFileSync(staticeSourcePath);
+            console.log(resource);
             const fileType = fileSource.match(/(?<=\.)\w+$/)![0];
             return new Response(resource, {
                 headers: {
@@ -148,7 +149,7 @@ class RequestMapper {
         const urlMatchStaticSource = url.match(/(\/\w+)+\.\w+$/);
         // 判断静态资源
         if (urlMatchStaticSource) {
-            this.mapStaticSourceRequest(urlMatchStaticSource[0]);
+            return this.mapStaticSourceRequest(urlMatchStaticSource[0]);
         }
         // 去除queryString
         const queryStringReg = /(?<=^(https?|ws):\/\/?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?((\/\w+)+\/?)?)\?.*/g;
