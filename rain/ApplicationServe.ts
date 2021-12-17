@@ -17,7 +17,16 @@ interface PathMapper {
 
 interface ApplicationConfig {
     port?: number;
-    static?: string;
+    static?: {
+        enable?: boolean;
+        index?: string;
+    };
+}
+
+interface FilterInfo {
+    path: string;
+    name: string;
+    proto: any;
 }
 
 class PathMember {
@@ -61,16 +70,21 @@ const pathMap = new Map<string, PathMember>();
 const containerMap = new Map<Object, any>();
 const autoWiredMap = new Map<any, Map<string, any>>();
 const valueMap = new Map<any, Map<string, any>>();
+const filterArray: Array<FilterInfo> = [];
 
 class ApplicationServe {
     private pathMap = pathMap;
     private containerMap = containerMap;
     private autoWiredMap = autoWiredMap;
     private valueMap = valueMap;
-    private rainContainer: Map<string, PathMapper> = new Map<string, PathMapper>();
-    private configuration: ApplicationConfig = {
+    private rainContainer = new Map<string, PathMapper>();
+    private filterArray = filterArray;
+    private configuration = {
         port: 8000,
-        static: "/static"
+        static: {
+            enable: false,
+            index: "index.html"
+        }
     };
 
     public getPathMap() {
@@ -92,8 +106,11 @@ class ApplicationServe {
         return this.configuration;
     }
     public setConfiguration(configuration: ApplicationConfig) {
-        if (configuration.port) this.configuration.port = configuration.port;
-        if (configuration.static) this.configuration.static = configuration.static;
+        configuration.port && (this.configuration.port = configuration.port);
+        if (configuration.static) {
+            configuration.static.enable && (this.configuration.static.enable = configuration.static.enable);
+            configuration.static.index && (this.configuration.static.index = configuration.static.index);
+        }
     }
 
     public init() {
@@ -118,16 +135,14 @@ class ApplicationServe {
             }
         }
 
+
         // 初始化容器组件autoWired
         for (const [key, member] of this.autoWiredMap) {
             const instance = this.containerMap.get(key);
             for (const [valueKey, value] of member) {
                 const instanceValue = this.containerMap.get(value);
-                if (instanceValue) {
-                    instance[valueKey] = instanceValue;
-                } else {
-                    console.warn(`${key.constructor.name}:未找到装配项 ${valueKey}`);
-                }
+                instanceValue ? instance[valueKey] = instanceValue :
+                    console.warn(`%c${key.constructor.name}:could not find autowired component -- ${valueKey}`, "color:red");
             }
         }
     }
@@ -166,7 +181,7 @@ const valueMapping = (map: Map<any, Map<string, any>>, proto: any) => {
 
 const Controller = <T extends new (...args: any[]) => {}>(path: string) => {
     return (constructor: T) => {
-        console.log("loading[Controller]:  " + constructor.name);
+        console.log("💧 loading [ Controller ]:  " + constructor.name);
         const mapper = initPathMapper(pathMap, constructor.name, constructor.prototype);
         mapper.setPath(path);
     }
@@ -191,7 +206,7 @@ const Service = <T extends new (...args: any[]) => {}>(constructor: T) => {
     containerMap.set(constructor.prototype, true);
 }
 
-const Param = (paramName: string, paramType?: string) => {
+const Param = (paramName: string, paramType?: "number" | "string") => {
     return (proto: any, functionKey: string, paramIndex: number) => {
         const mapper = initPathMapper(pathMap, proto.constructor.name, proto);
         const paramsMap = mapper.getParamsMap();
@@ -203,6 +218,16 @@ const Param = (paramName: string, paramType?: string) => {
         functionParamsMap.set(paramIndex, {
             paramName,
             paramType: paramType ?? "string"
+        });
+    }
+}
+
+const Filter = (path: string) => {
+    return (proto: any, key: string) => {
+        filterArray.push({
+            path,
+            proto,
+            name: key
         });
     }
 }

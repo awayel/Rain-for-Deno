@@ -7,24 +7,27 @@ import Scanner from './Scanner.ts'
 // export default serveStart;
 
 class Application {
-    // private applicationConfig: ApplicationConfig | null = null;
+
     private ApplicationServe: ApplicationServe = new ApplicationServe();
     private srcPath: string = "./src";
-    private requestMapper: RequestMapper = new RequestMapper(this.ApplicationServe);
     constructor() {
+        console.log(`Rain for deno ☔ beta.0.0.4`);
         this.scannerSource();
     }
+
     async scannerSource() {
         const scanner = new Scanner(this.ApplicationServe, "..");
         await scanner.scannerSource(this.srcPath);
         this.ApplicationServe.init();
         this.startServe();
     }
+
     startServe() {
         const port = this.ApplicationServe.getConfiguration().port;
-        console.log(`Application running at ：%chttp://localhost:${port}/`, "color:#00c920");
+        const requestMapper = new RequestMapper(this.ApplicationServe);
+        console.log(`🌈 Application running at ：%chttp://localhost:${port}/`, "color:#00c920");
         serve((req: Request) => {
-            return this.requestMapper.mapRequest(req);
+            return requestMapper.mapRequest(req);
         }, { addr: `:${port}` });
     }
 }

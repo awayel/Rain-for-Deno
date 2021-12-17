@@ -11,11 +11,10 @@ class ApiController {
 
     @GetMapping("/get")
     public getUserInfo(
-        @Param("star", "number") star: number,
-        @Param("ddd") ddd: number
+        @Param("rain") star: number,
+        @Param("deno") ddd: number
     ) {
-        console.log(star);
-        console.log(ddd);
+        console.log(star, ddd);
         return {
             code: 200,
             message: "获取成功",
@@ -29,10 +28,10 @@ class ApiController {
 
     @PostMapping("/post")
     public postUserInfo(
-        @Param("ddd", "string") userName: string,
-        @Param("ddd2") name: string
+        @Param("rain", "string") rain: string,
+        @Param("denoVersion", "number") denoVersion: string
     ) {
-        console.log(userName, name);
+        console.log(rain,denoVersion);
         return {
             code: 200,
             message: "获取成功",

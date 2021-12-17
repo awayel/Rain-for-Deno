@@ -1,0 +1,7 @@
+{
+    "port": 8005,
+    "static": {
+        "enable": true,
+        "index": "/index.html"
+    }
+}

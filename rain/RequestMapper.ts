@@ -5,15 +5,23 @@ class RequestMapper {
     private staticeDir = "/static"
     private decoder = new TextDecoder();
     private rainContainer: Map<string, PathMapper>;
+    private staticEnable: boolean;
+    private staticIndex: string;
     constructor(ApplicationServe: ApplicaitionContainer, staticeDir?: string) {
-        if (staticeDir) this.staticeDir = staticeDir;
+        staticeDir && (this.staticeDir = staticeDir);
+        const staticSource = ApplicationServe.getConfiguration().static;
+        this.staticEnable = staticSource.enable;
+        this.staticIndex = staticSource.index;
         this.rainContainer = ApplicationServe.getRainContainer();
     }
 
     //参数类型转换
-    parseParamsType(value: any, type: string) {
+    public static parseParamsType(value: any, type: string) {
         if (type === "number") {
-            return Number(value);
+            const result = Number(value);
+            if (value === undefined) throw new Error(`The param is required,and the paramtype is "number";`);
+            if (isNaN(result)) throw new Error(`${value} is not a number`);
+            return result;
         } else if (type === "string") {
             return value + "";
         } else {
@@ -21,24 +29,35 @@ class RequestMapper {
         }
     }
 
+    //匹配参数列表
+    private static mapParams(body: any, paramsMap: Map<number, ParamInfo>, paramsList: Array<any>) {
+        for (const [key, paramInfo] of paramsMap) {
+            try {
+                paramsList[key] = RequestMapper.parseParamsType(body[paramInfo.paramName], paramInfo.paramType);
+            } catch (error) {
+                throw new Error(`param error:  [${paramInfo.paramName}] with value ${body[paramInfo.paramName]} and paramType -- ${paramInfo.paramType}:
+    at:${error}`);
+            }
+        }
+    }
+
     //获取请求参数列表
-    async getRequestParams(req: Request, paramsMap: Map<number, ParamInfo>) {
+    private async getRequestParams(req: Request, paramsMap: Map<number, ParamInfo>) {
         const { method, url } = req;
         const contentType = req.headers.get('content-type');
         let paramsList: Array<any> = [];
+        let body: any = {};
         if (method === "POST") {
             if (contentType === "application/json") {
                 const stream = await req.body?.getReader().read();
                 if (stream?.value) {
                     const json = this.decoder.decode(stream?.value);
                     try {
-                        const body = JSON.parse(json);
-                        for (const [key, paramInfo] of paramsMap) {
-                            paramsList[key] = this.parseParamsType(body[paramInfo.paramName], paramInfo.paramType);
-                        }
+                        body = JSON.parse(json);
                     } catch (error) {
                         throw new Error("JSON error: " + json);
                     }
+                    RequestMapper.mapParams(body, paramsMap, paramsList);
                 }
             }
             if (contentType?.includes("multipart/form-data;")) {
@@ -52,44 +71,36 @@ class RequestMapper {
                     const keyRegExp = /(?<=Content-Disposition:\sform-data;\sname=")[a-zA-Z_$][a-zA-Z0-9]*(?="\s+)/g
                     const keys = bodyString.match(keyRegExp);
                     if (keys && values) {
-                        let body: any = {};
                         for (let i = 0; i < keys.length; i++) {
                             const key = keys[i];
                             body[key] = values[i];
                         }
-                        for (const [key, paramInfo] of paramsMap) {
-                            paramsList[key] = this.parseParamsType(body[paramInfo.paramName], paramInfo.paramType);
-                        }
+                        RequestMapper.mapParams(body, paramsMap, paramsList);
                     }
-                }
-            }
-        } else if (method === "GET") {
-            const queryStringReg = /(?<=^(https?|ws):\/\/?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?((\/\w+)+\/?)?\?)([\w$_]+(=[%\w]+)?&?)+$/g;
-            const queryStringMatchResult = url.match(queryStringReg);
-            if (queryStringMatchResult) {
-                const queryString = queryStringMatchResult[0];
-                const queryStringItemList = queryString.split("&");
-                const queryList: Array<Array<string>> = [];
-                queryStringItemList.forEach(query => {
-                    queryList.push(query.split("="));
-                })
-                const body: any = {};
-                for (let i = 0; i < queryList.length; i++) {
-                    const query = queryList[i];
-                    if (query[0]) {
-                        body[query[0]] = query[1] ?? undefined;
-                    }
-                }
-                for (const [key, paramInfo] of paramsMap) {
-                    paramsList[key] = this.parseParamsType(body[paramInfo.paramName], paramInfo.paramType);
                 }
             }
         }
+        const queryStringReg = /(?<=^(https?|ws):\/\/?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?((\/\w+)+\/?)?\?)([\w$_]+(=[%\w.]+)?&?)+$/g;
+        const queryStringMatchResult = url.match(queryStringReg);
+        if (queryStringMatchResult) {
+            const queryString = queryStringMatchResult[0];
+            const queryStringItemList = queryString.split("&");
+            const queryList: Array<Array<string>> = [];
+            queryStringItemList.forEach(query => {
+                queryList.push(query.split("="));
+            })
+            for (let i = 0; i < queryList.length; i++) {
+                const query = queryList[i];
+                query[0] && (body[query[0]] = query[1] === undefined ? undefined : decodeURI(query[1]));
+            }
+            RequestMapper.mapParams(body, paramsMap, paramsList);
+        }
+
         return paramsList;
     }
 
     //RESTful服务
-    async servelet(req: Request, path: string) {
+    private async servelet(req: Request, path: string) {
         const { method, url } = req;
         // 参数数组
         const mapper = this.rainContainer.get("#" + method + "#" + path);
@@ -112,44 +123,49 @@ class RequestMapper {
         return new Response(JSON.stringify(result));
     }
 
+    //静态资源匹配
+    private mapStaticSourceRequest(fileSource: string) {
+        const staticeSourcePath = this.basePath + this.staticeDir + fileSource;
+        try {
+            const resource = Deno.readFileSync(staticeSourcePath);
+            const fileType = fileSource.match(/(?<=\.)\w+$/)![0];
+            return new Response(resource, {
+                headers: {
+                    "content-Type": getFileResourceHeader(fileType)
+                }
+            });
+        } catch (error) {
+            return new Response("404 not found", {
+                status: 404
+            });
+        }
+    }
+
     //请求处理
-    mapRequest(req: Request) {
+    public mapRequest(req: Request) {
+
         const url = req.url;
         const urlMatchStaticSource = url.match(/(\/\w+)+\.\w+$/);
         // 判断静态资源
         if (urlMatchStaticSource) {
-            const staticeSourcePath = (this.basePath + this.staticeDir + urlMatchStaticSource[0]).replaceAll(/\//ig, "\\");
-            // console.log("静态资源：", staticeSourcePath);
-            try {
-                const resource = Deno.readFileSync(staticeSourcePath);
-                const fileType = urlMatchStaticSource[0].match(/(?<=\.)\w+$/)![0];
-                return new Response(resource, {
-                    headers: {
-                        "content-Type": getFileResourceHeader(fileType)
-                    }
-                });
-            } catch (error) {
-                return new Response("404 not found", {
-                    status: 404
-                });
-            }
+            this.mapStaticSourceRequest(urlMatchStaticSource[0]);
         }
         // 去除queryString
         const queryStringReg = /(?<=^(https?|ws):\/\/?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?((\/\w+)+\/?)?)\?.*/g;
         const path = url.replace(queryStringReg, "");
         // 获取path
-        let pathMatchResult = path.match(/(?<=(^(https?|ws):\/\/)?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?)(\/\w+)+\/?$/ig);
-        // console.log(path);
-        let pathMatch = ""
+        let pathMatchResult = path.match(/(?<=(^(https?|ws):\/\/)?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?)(\/\w+)*\/?$/ig);
+        let mathedPath = ""
         if (pathMatchResult) {
-            pathMatch = pathMatchResult[0];
-            pathMatch = pathMatch.replace(/\/$/, "");
+            mathedPath = mathedPath.replace(/\/$/, "");
+            mathedPath = pathMatchResult[0];
+            if (mathedPath === '/' && this.staticEnable) return this.mapStaticSourceRequest(this.staticIndex);
         } else {
             return new Response("404 not found", {
                 status: 404
             });
         }
-        return this.servelet(req, pathMatch);
+        return this.servelet(req, mathedPath);
     }
 
 }
