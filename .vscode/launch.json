@@ -13,6 +13,7 @@
             "runtimeExecutable": "C:\\Users\\Administrator\\.deno\\bin\\deno.EXE",
             "runtimeArgs": [
                 "run",
+                "--inspect",
                 "--allow-all"
             ],
             "attachSimplePort": 9229

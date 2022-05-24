@@ -1,7 +1,11 @@
+import DataBaseConfiguration from './inter/DataBaseConfiguration.ts'
+
+type ContentType = "multipart/form-data" | "application/json" | "application/x-www-form-urlencoded";
 interface MappingMember {
     path: string;
     name: string;
     method: string;
+    contentType: ContentType
 }
 interface ParamInfo {
     paramType: string;
@@ -12,6 +16,7 @@ interface ParamInfo {
 interface PathMapper {
     target: Object;
     fn: string;
+    contentType:ContentType
     params: Map<number, ParamInfo>;
 }
 
@@ -21,6 +26,9 @@ interface ApplicationConfig {
         enable?: boolean;
         index?: string;
     };
+    doc?: {
+        enable?: boolean;
+    }
 }
 
 interface FilterInfo {
@@ -28,6 +36,7 @@ interface FilterInfo {
     name: string;
     proto: any;
 }
+
 
 class PathMember {
     private path: string = "";
@@ -68,9 +77,11 @@ class PathMember {
 
 const pathMap = new Map<string, PathMember>();
 const containerMap = new Map<Object, any>();
+const configurationMap = new Map<Object, any>();
 const autoWiredMap = new Map<any, Map<string, any>>();
 const valueMap = new Map<any, Map<string, any>>();
 const filterArray: Array<FilterInfo> = [];
+const repositoryMap = new Map<any, any>();
 
 class ApplicationServe {
     private pathMap = pathMap;
@@ -79,11 +90,17 @@ class ApplicationServe {
     private valueMap = valueMap;
     private rainContainer = new Map<string, PathMapper>();
     private filterArray = filterArray;
+    private repositoryMap = repositoryMap;
+    private configurationMap = configurationMap;
     private configuration = {
         port: 8000,
         static: {
             enable: false,
             index: "index.html"
+        },
+        doc: {
+            enable: false,
+            url: "/rain-doc/index.html"
         }
     };
 
@@ -111,6 +128,16 @@ class ApplicationServe {
             configuration.static.enable && (this.configuration.static.enable = configuration.static.enable);
             configuration.static.index && (this.configuration.static.index = configuration.static.index);
         }
+        if (configuration.doc) {
+            configuration.doc.enable && (this.configuration.doc.enable = configuration.doc.enable);
+        }
+    }
+
+    public getRepository() {
+        return this.repositoryMap;
+    }
+    public getConfigurations() {
+        return this.configurationMap;
     }
 
     public init() {
@@ -122,9 +149,22 @@ class ApplicationServe {
                 this.rainContainer.set("#" + element.method + "#" + member.getPath() + element.path, {
                     target: instance,
                     fn: element.name,
+                    contentType: element.contentType,
                     params: member.getParamsMap().get(element.name) ?? new Map<number, ParamInfo>()
                 });
             }
+        }
+        // 初始化Configuration
+        for (const [key, member] of this.configurationMap) {
+            const instance = this.containerMap.get(key);
+            const daoList: any[] = [];
+            for (const key of this.repositoryMap.keys()) {
+                daoList.push(key);
+            }            
+            // daoList.sort(dao=>{
+            //     if(typeof dao.prototype ==="")
+            // })
+            instance.init(daoList);
         }
 
         // 初始化容器组件value
@@ -148,7 +188,7 @@ class ApplicationServe {
     }
 }
 
-const initPathMapper = (pathMap: Map<Object, PathMember>, mapperName: string, proto: any) => {
+function initPathMapper(pathMap: Map<Object, PathMember>, mapperName: string, proto: any) {
     let mapper = pathMap.get(mapperName);
     if (mapper === undefined) {
         mapper = new PathMember();
@@ -158,18 +198,19 @@ const initPathMapper = (pathMap: Map<Object, PathMember>, mapperName: string, pr
     return mapper;
 }
 
-const mapping = (path: string, method: string) => {
+function mapping(path: string, method: string, contentType?: ContentType) {
     return (proto: any, key: string) => {
         const mapper = initPathMapper(pathMap, proto.constructor.name, proto);
         mapper.addChildren({
             name: key,
             method,
-            path
+            path,
+            contentType: contentType ? contentType : "application/json"
         });
     }
 }
 
-const valueMapping = (map: Map<any, Map<string, any>>, proto: any) => {
+function valueMapping(map: Map<any, Map<string, any>>, proto: any) {
     let mapper = map.get(proto);
     if (mapper == undefined) {
         mapper = new Map<any, Map<string, any>>();
@@ -179,34 +220,48 @@ const valueMapping = (map: Map<any, Map<string, any>>, proto: any) => {
 }
 
 
-const Controller = <T extends new (...args: any[]) => {}>(path: string) => {
+function Controller<T extends new (...args: any[]) => {}>(path: string) {
     return (constructor: T) => {
-        console.log("💧 loading [ Controller ]:  " + constructor.name);
+        console.log(" 💧 [ Controller ] loading:  " + constructor.name);
         const mapper = initPathMapper(pathMap, constructor.name, constructor.prototype);
         mapper.setPath(path);
     }
 }
 
-const GetMapping = (path: string) => mapping(path, "GET");
-
-const PostMapping = (path: string) => mapping(path, "POST");
-
-const Value = <T>(value: T) => (proto: any, key: string) => {
-    const mapper = valueMapping(valueMap, proto);
-    mapper.set(key, value);
+function Repository<T extends new (...args: any[]) => {}>(constructor: T) {
+    containerMap.set(constructor.prototype, true);
+    repositoryMap.set(constructor, true);
 }
-const AutoWired = <T extends new (...args: any[]) => {}>(constructor: T) => {
+
+function GetMapping(path: string) { return mapping(path, "GET") };
+
+function PostMapping(path: string, contentType?: ContentType) { return mapping(path, "POST", contentType ? contentType : "application/json") };
+
+function Value<T>(value: T) {
+    return (proto: any, key: string) => {
+        const mapper = valueMapping(valueMap, proto);
+        mapper.set(key, value);
+    }
+}
+function AutoWired<T extends new (...args: any[]) => {}>(constructor: T) {
     return (proto: any, key: string) => {
         const mapper = valueMapping(autoWiredMap, proto);
         mapper.set(key, constructor.prototype);
     }
 }
 
-const Service = <T extends new (...args: any[]) => {}>(constructor: T) => {
+function Service<T extends new (...args: any[]) => {}>(constructor: T) {
+    console.log("%c ❀ %c [ Service ] loading:  " + constructor.name, "color:pink", "color:#ffffff");
     containerMap.set(constructor.prototype, true);
 }
 
-const Param = (paramName: string, paramType?: "number" | "string") => {
+function Configuration<T extends new (...args: any[]) => {}>(constructor: T) {
+    console.log("🍀  [ Configuration ] loading:  " + constructor.name);
+    containerMap.set(constructor.prototype, true);
+    configurationMap.set(constructor.prototype, true);
+}
+
+function Param(paramName: string, paramType?: "number" | "string") {
     return (proto: any, functionKey: string, paramIndex: number) => {
         const mapper = initPathMapper(pathMap, proto.constructor.name, proto);
         const paramsMap = mapper.getParamsMap();
@@ -222,7 +277,22 @@ const Param = (paramName: string, paramType?: "number" | "string") => {
     }
 }
 
-const Filter = (path: string) => {
+function RequestBody(proto: any, functionKey: string, paramIndex: number) {
+    const mapper = initPathMapper(pathMap, proto.constructor.name, proto);
+    const paramsMap = mapper.getParamsMap();
+    let functionParamsMap = paramsMap.get(functionKey);
+    if (functionParamsMap === undefined) {
+        functionParamsMap = new Map<number, ParamInfo>();
+        paramsMap.set(functionKey, functionParamsMap);
+    }
+    functionParamsMap.set(paramIndex, {
+        paramName: "",
+        paramType: "object"
+    });
+}
+
+
+function Filter(path: string) {
     return (proto: any, key: string) => {
         filterArray.push({
             path,
@@ -241,8 +311,11 @@ export {
     Value,
     AutoWired,
     Service,
-    Param
+    Param,
+    Repository,
+    Configuration,
+    RequestBody
 };
-export type { MappingMember, ParamInfo, PathMapper, ApplicationConfig };
+export type { MappingMember, ParamInfo, PathMapper, ApplicationConfig,ContentType };
 
 export default ApplicationServe;

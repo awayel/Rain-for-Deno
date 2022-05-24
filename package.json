@@ -1,0 +1,20 @@
+{
+  "name": "rain",
+  "version": "0.0.5",
+  "description": "装饰器类似于java的springMVC框架注释用法，带有@Controller装饰器的导出类，可被扫描到并装配至容器内。\r 部分装饰器用法受限于装饰器本身，而不同于springMVC，如@AutoWired需要传入类名，@Param需要加上参数名。 提供装饰器：Controller,\r GetMapping, PostMapping, Value, AutoWired, Param",
+  "main": "index.js",
+  "scripts": {
+    "serve": "deno run --allow-all app.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/awayel/Rain-for-Deno.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/awayel/Rain-for-Deno/issues"
+  },
+  "homepage": "https://github.com/awayel/Rain-for-Deno#readme"
+}

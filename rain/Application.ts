@@ -11,7 +11,7 @@ class Application {
     private ApplicationServe: ApplicationServe = new ApplicationServe();
     private srcPath: string = "./src";
     constructor() {
-        console.log(`Rain for deno ☔ beta.0.0.4`);
+        console.log(`☔ Rain for deno ☔ beta 0.0.4`);
         this.scannerSource();
     }
 
@@ -25,10 +25,11 @@ class Application {
     startServe() {
         const port = this.ApplicationServe.getConfiguration().port;
         const requestMapper = new RequestMapper(this.ApplicationServe);
-        console.log(`🌈 Application running at ：%chttp://localhost:${port}/`, "color:#00c920");
         serve((req: Request) => {
             return requestMapper.mapRequest(req);
         }, { addr: `:${port}` });
+        console.log(`🌈 Application running at ：%chttp://localhost:${port}/`, "color:#00c920");
+        // console.log(this.ApplicationServe.getRepository());
     }
 }
 

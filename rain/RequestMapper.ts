@@ -1,18 +1,25 @@
 import { getFileResourceHeader } from './FileResource.ts'
-import ApplicaitionContainer, { ParamInfo, PathMapper } from './ApplicationServe.ts'
+import ApplicaitionContainer, { ParamInfo, PathMapper, PathMember, ContentType } from './ApplicationServe.ts'
+import mapToObject from './tools.ts'
 class RequestMapper {
     private basePath = Deno.cwd();
     private staticeDir = "/static"
     private decoder = new TextDecoder();
     private rainContainer: Map<string, PathMapper>;
+    private pathMap: Map<string, PathMember>;
     private staticEnable: boolean;
     private staticIndex: string;
+    private docURL: string;
+    private docEnable: boolean;
     constructor(ApplicationServe: ApplicaitionContainer, staticeDir?: string) {
         staticeDir && (this.staticeDir = staticeDir);
         const staticSource = ApplicationServe.getConfiguration().static;
         this.staticEnable = staticSource.enable;
         this.staticIndex = staticSource.index;
         this.rainContainer = ApplicationServe.getRainContainer();
+        this.pathMap = ApplicationServe.getPathMap();
+        this.docEnable = ApplicationServe.getConfiguration().doc.enable;
+        this.docURL = ApplicationServe.getConfiguration().doc.url;
     }
 
     //参数类型转换
@@ -35,16 +42,15 @@ class RequestMapper {
             try {
                 paramsList[key] = RequestMapper.parseParamsType(body[paramInfo.paramName], paramInfo.paramType);
             } catch (error) {
-                throw new Error(`param error:  [${paramInfo.paramName}] with value ${body[paramInfo.paramName]} and paramType -- ${paramInfo.paramType}:
+                throw new Error(`param error:  "${paramInfo.paramName}" with value ${body[paramInfo.paramName]} and param type -- ${paramInfo.paramType}:
     at:${error}`);
             }
         }
     }
 
     //获取请求参数列表
-    private async getRequestParams(req: Request, paramsMap: Map<number, ParamInfo>) {
+    private async getRequestParams(req: Request, paramsMap: Map<number, ParamInfo>, contentType: ContentType) {
         const { method, url } = req;
-        const contentType = req.headers.get('content-type');
         let paramsList: Array<any> = [];
         let body: any = {};
         if (method === "POST") {
@@ -53,29 +59,34 @@ class RequestMapper {
                 if (stream?.value) {
                     const json = this.decoder.decode(stream?.value);
                     try {
-                        body = JSON.parse(json);
+                        body =JSON.parse(JSON.parse(json));
+                        // body = JSON.parse(json);
                     } catch (error) {
                         throw new Error("JSON error: " + json);
                     }
-                    RequestMapper.mapParams(body, paramsMap, paramsList);
+                    // RequestMapper.mapParams(body, paramsMap, paramsList);                  
+                    paramsList.push(body);
                 }
-            }
-            if (contentType?.includes("multipart/form-data;")) {
+            } else if (contentType === "multipart/form-data") {
                 const stream = await req.body?.getReader().read();
                 if (stream?.value) {
                     const bodyString = this.decoder.decode(stream?.value);
                     const boundary = bodyString.match(/^[\w\d-=]+/)![0];
-                    const regString = `(?<=Content-Disposition:\\sform-data;\\sname="[a-zA-Z_$][a-zA-Z0-9]*"\\s+).*(?=\\s+${boundary})`;
-                    const valueRegExp = new RegExp(regString, 'g');
-                    const values = bodyString.match(valueRegExp);
-                    const keyRegExp = /(?<=Content-Disposition:\sform-data;\sname=")[a-zA-Z_$][a-zA-Z0-9]*(?="\s+)/g
-                    const keys = bodyString.match(keyRegExp);
-                    if (keys && values) {
-                        for (let i = 0; i < keys.length; i++) {
-                            const key = keys[i];
-                            body[key] = values[i];
+                    if (boundary) {
+                        const regString = `(?<=Content-Disposition:\\sform-data;\\sname="[a-zA-Z_$][a-zA-Z0-9]*"\\s+).*(?=\\s+${boundary})`;
+                        const valueRegExp = new RegExp(regString, 'g');
+                        const values = bodyString.match(valueRegExp);
+                        const keyRegExp = /(?<=Content-Disposition:\sform-data;\sname=")[a-zA-Z_$][a-zA-Z0-9]*(?="\s+)/g
+                        const keys = bodyString.match(keyRegExp);
+                        if (keys && values) {
+                            for (let i = 0; i < keys.length; i++) {
+                                const key = keys[i];
+                                body[key] = values[i];
+                            }
+                            RequestMapper.mapParams(body, paramsMap, paramsList);
                         }
-                        RequestMapper.mapParams(body, paramsMap, paramsList);
+                    } else {
+                        throw new Error("Request error: no boundary found in request [ multipart/form-data ]");
                     }
                 }
             }
@@ -107,15 +118,14 @@ class RequestMapper {
         let result: Object;
         if (mapper) {
             try {
-                const paramsList = await this.getRequestParams(req, mapper.params);
-                result = (mapper.target as any)[mapper.fn](...paramsList);
+                const paramsList = await this.getRequestParams(req, mapper.params, mapper.contentType);                
+                result = await (mapper.target as any)[mapper.fn](...paramsList);
             } catch (error) {
                 return new Response(error, {
                     status: 400
                 });
             }
-        }
-        else {
+        } else {
             return new Response("404 not found", {
                 status: 404
             });
@@ -125,10 +135,15 @@ class RequestMapper {
 
     //静态资源匹配
     private mapStaticSourceRequest(fileSource: string) {
-        const staticeSourcePath = this.basePath + this.staticeDir + fileSource;
+
+        let staticeSourcePath = "";
+        if (this.docEnable && fileSource.match(/^\/rain-doc\//)) {
+            staticeSourcePath = this.basePath + "/rain/resource/doc" + fileSource.replace(/^\/rain-doc/, '');
+        } else {
+            staticeSourcePath = this.basePath + this.staticeDir + fileSource;
+        }
         try {
             const resource = Deno.readFileSync(staticeSourcePath);
-            console.log(resource);
             const fileType = fileSource.match(/(?<=\.)\w+$/)![0];
             return new Response(resource, {
                 headers: {
@@ -144,22 +159,28 @@ class RequestMapper {
 
     //请求处理
     public mapRequest(req: Request) {
-
         const url = req.url;
-        const urlMatchStaticSource = url.match(/(\/\w+)+\.\w+$/);
+        const urlMatchStaticSource = url.match(/(\/[\w-_]+)+\.\w+$/);
         // 判断静态资源
         if (urlMatchStaticSource) {
             return this.mapStaticSourceRequest(urlMatchStaticSource[0]);
         }
         // 去除queryString
-        const queryStringReg = /(?<=^(https?|ws):\/\/?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?((\/\w+)+\/?)?)\?.*/g;
+        const queryStringReg = /(?<=^(https?|ws):\/\/?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?((\/[\w-_]+)+\/?)?)\?.*/g;
         const path = url.replace(queryStringReg, "");
         // 获取path
-        let pathMatchResult = path.match(/(?<=(^(https?|ws):\/\/)?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?)(\/\w+)*\/?$/ig);
+        let pathMatchResult = path.match(/(?<=(^(https?|ws):\/\/)?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?)(\/[\w-_]+)*\/?$/ig);
         let mathedPath = ""
         if (pathMatchResult) {
             mathedPath = mathedPath.replace(/\/$/, "");
             mathedPath = pathMatchResult[0];
+            if (this.docEnable && mathedPath === "/rain-doc/getInfo") {
+                return new Response(JSON.stringify(mapToObject(this.pathMap)), {
+                    headers: {
+                        "content-Type": getFileResourceHeader("json")
+                    }
+                });
+            }
             if (mathedPath === '/' && this.staticEnable) return this.mapStaticSourceRequest(this.staticIndex);
         } else {
             return new Response("404 not found", {
@@ -168,7 +189,6 @@ class RequestMapper {
         }
         return this.servelet(req, mathedPath);
     }
-
 }
 
 

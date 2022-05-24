@@ -8,6 +8,7 @@ class Scanner {
     constructor(applicationServe: ApplicationServe, basePath?: string) {
         basePath && (this.basePath = basePath);
         this.applicationServe = applicationServe;
+        // this.addFileListener();
         this.containerMap = applicationServe.getContainerMap();
         this.pathMap = applicationServe.getPathMap();
     }
@@ -16,9 +17,9 @@ class Scanner {
     public async scannerSource(srcPath: string) {
         for await (const dirEntry of Deno.readDir(srcPath)) {
             if (dirEntry.isDirectory) {
-                await this.scannerSource(srcPath + "/" + dirEntry.name);
+                await this.scannerSource(srcPath + "\\" + dirEntry.name);
             } else if (dirEntry.isFile) {
-                const path = srcPath.slice(1) + "/" + dirEntry.name;
+                const path = srcPath.slice(1) + "\\" + dirEntry.name;
                 await this.loadFile(path, dirEntry.name);
             }
         }
@@ -26,19 +27,31 @@ class Scanner {
     }
 
 
+
     private async loadFile(path: string, fileName: string) {
         if (/.ts$/.test(fileName)) {
             const ClassModule = await import(this.basePath + path);
-            const Class = ClassModule.default;
-            if (Class && Class.prototype && Class.prototype.constructor === Class) {
-                let instance = new Class();
-                this.containerMap.get(Class.prototype) && this.containerMap.set(Class.prototype, instance);
-                let mapper = this.pathMap.get(Class.prototype.constructor.name);
+            const Clazz = ClassModule.default;
+            if (Clazz && Clazz.prototype && Clazz.prototype.constructor === Clazz && typeof Clazz === 'function') {
+                const instance = new Clazz();
+                this.containerMap.get(Clazz.prototype) && this.containerMap.set(Clazz.prototype, instance);
+                const mapper = this.pathMap.get(Clazz.prototype.constructor.name);
                 mapper && mapper.setInstance(instance);
             }
         } else if (fileName === "Application.config.json") {
             const config = JSON.parse(Deno.readTextFileSync(Deno.cwd() + path));
             this.applicationServe.setConfiguration(config);
+        }
+    }
+
+    private async addFileListener() {
+        let isModiefing = false;
+        const watcher = Deno.watchFs("src");
+        for await (const event of watcher) {
+            if (!isModiefing) {
+                isModiefing = true;
+            }
+            // console.log(">>>> event", event);
         }
     }
 }

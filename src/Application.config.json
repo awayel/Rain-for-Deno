@@ -1,7 +1,10 @@
 {
-    "port": 8005,
+    "port": 8015,
     "static": {
         "enable": true,
         "index": "/index.html"
+    },
+    "doc": {
+        "enable": true
     }
 }

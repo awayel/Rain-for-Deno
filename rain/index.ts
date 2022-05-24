@@ -1,16 +1,5 @@
 import Application from './Application.ts'
-import {
-    Controller,
-    GetMapping,
-    PostMapping,
-    Value,
-    AutoWired,
-    Service,
-    Param
-} from './ApplicationServe.ts'
-
-
-export default Application;
+import DataBaseConfiguration  from './inter/DataBaseConfiguration.ts'
 export {
     Controller,
     GetMapping,
@@ -18,5 +7,12 @@ export {
     Value,
     AutoWired,
     Service,
-    Param
+    Param,
+    Configuration,
+    Repository,
+    RequestBody
+} from './ApplicationServe.ts';
+export type{
+    DataBaseConfiguration
 }
+export default Application;
