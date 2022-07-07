@@ -1,75 +1,78 @@
-<div class="container">
-    <div class="controller" v-for="(controller,controllerName,cidx) in controllers">
-        <div class="controller-name">{{controllerName}}</div>
-        <div class="api" v-for="(api,aidx) in controller.children">
-            <div class="api-name">
-                <div class="api-title">
-                    <span class="api-method">{{api.method}}</span>
-                    <span class="api-path">{{api.path}}</span>
-                </div>
-                <div class="api-content" v-if="api.method==='POST'">content-type : {{api.contentType}}</div>
-                <div class="api-params">
-                    <div class="params-title">params</div>
-                    <div class="api-param" style="justify-content: space-between" v-for="(param,pidx) in api.params">
-                        <div class="api-param">
-                            <span class="param-name">{{param.paramName}}</span>
-                            <input class="param-value" type="text" v-model="param.value">
-                        </div>
-                        <span class="param-type">{{param.paramType}}</span>
+
+    <div class="container">
+        <div class="controller" v-for="(controller, controllerName, cidx) in controllers">
+            <div class="controller-name">{{ controllerName }}</div>
+            <div class="api" v-for="(api, aidx) in controller.children">
+                <div class="api-name">
+                    <div class="api-title">
+                        <span class="api-method">{{ api.method }}</span>
+                        <span class="api-path">{{ api.path }}</span>
                     </div>
-                </div>
-                <div class="api-response">
-                    <div>response</div>
-                    <json-show :json="api.response" />
-                </div>
-                <button class="try-button" @click="send(api,controller)">send</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div>
-    <div v-if="json">
-        <div>{</div>
-        <div class="response-attribute" v-for="(value,key) in json" :key="key">
-            <div class="response-key-value">
-                <span>"{{key}}"</span>
-                <span>:</span>
-                <span v-if="typeof value ==='string'">"{{value}}"</span>
-                <span v-else-if="typeof value ==='number'">{{value}}</span>
-                <div v-else>
-                    <json-show :json="value" />
+                    <div class="api-content" v-if="api.method === 'POST'">content-type : {{ api.contentType }}</div>
+                    <div class="api-params">
+                        <div class="params-title">params</div>
+                        <div class="api-param" style="justify-content: space-between"
+                            v-for="(param, pidx) in api.params">
+                            <div class="api-param">
+                                <span class="param-name">{{ param.paramName }}</span>
+                                <input type="file" v-if="param.type == 'file'" @change="handleChangeFile($event, param)">
+                                <input class="param-value" v-else type="text" v-model="param.value">
+                            </div>
+                            <span class="param-type">{{ param.paramType }}</span>
+                        </div>
+                    </div>
+                    <div class="api-response">
+                        <div>response</div>
+                        <json-show :json="api.response" />
+                    </div>
+                    <button class="try-button" @click="send(api, controller)">send</button>
                 </div>
             </div>
         </div>
-        <div>}</div>
     </div>
-</div>
 
-
-<div>
-    <div v-if="json===null">null</div>
-    <div v-else-if="typeof json ==='string'">"{{json}}"</div>
-    <div v-else-if="typeof json ==='number'">{{json}}</div>
-    <div class="response" v-else-if="typeof json == 'object' && json.constructor == Array">
-        <div>[</div>
-        <div class="response-key-value" v-for="(el,idx) in json" :key="idx">
-            <json-show :json="el"></json-show>
-            <template v-if="idx!==json.length-1">,</template>
-        </div>
-        <div>]</div>
-    </div>
-    <template v-else>
-        <div class="response">
+    <div>
+        <div v-if="json">
             <div>{</div>
-            <div v-for="(value,key) in json" :key="key">
+            <div class="response-attribute" v-for="(value, key) in json" :key="key">
                 <div class="response-key-value">
-                    <div>"{{key}}"</div>
-                    <div> : </div>
-                    <json-show :json="value"></json-show>,
+                    <span>"{{ key }}"</span>
+                    <span>:</span>
+                    <span v-if="typeof value === 'string'">"{{ value }}"</span>
+                    <span v-else-if="typeof value === 'number'">{{ value }}</span>
+                    <div v-else>
+                        <json-show :json="value" />
+                    </div>
                 </div>
             </div>
             <div>}</div>
         </div>
-    </template>
-</div>
+    </div>
+
+
+    <div>
+        <div v-if="json === null">null</div>
+        <div v-else-if="typeof json === 'string'">"{{ json }}"</div>
+        <div v-else-if="typeof json === 'number'">{{ json }}</div>
+        <div class="response" v-else-if="typeof json == 'object' && json.constructor == Array">
+            <div>[</div>
+            <div class="response-key-value" v-for="(el, idx) in json" :key="idx">
+                <json-show :json="el"></json-show>
+                <template v-if="idx !== json.length - 1">,</template>
+            </div>
+            <div>]</div>
+        </div>
+        <template v-else>
+            <div class="response">
+                <div>{</div>
+                <div v-for="(value,key) in json" :key="key">
+                    <div class="response-key-value">
+                        <div>"{{key}}"</div>
+                        <div> : </div>
+                        <json-show :json="value"></json-show>,
+                    </div>
+                </div>
+                <div>}</div>
+            </div>
+        </template>
+    </div>

@@ -1,4 +1,4 @@
-import { Controller, GetMapping, PostMapping, Value, AutoWired, Param,RequestBody} from '../../rain/index.ts';
+import { Controller, GetMapping, AutoWired} from '../../rain/index.ts';
 import UserService from '../service/UserService.ts'
 
 @Controller("/test")

@@ -1,66 +1,75 @@
-<!DOCTYPE html>
-<html lang="en">
 
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- <script src="https://unpkg.com/vue@next"></script> -->
-    <script src="js/vue.js"></script>
-    <link rel="stylesheet" href="css/style.css">
-    <title>Api-Document</title>
-</head>
+    <!DOCTYPE html>
+    <html lang="en">
 
-<body>
-    <div class="rain-doc">api-document beta 0.0.1</div>
-    <div id="app">
-        <div class="container">
-            <div class="controller" v-for="(controller,controllerName,cidx) in controllers">
-                <div class="controller-name">{{controllerName}}</div>
-                <div class="api" :class="{'api-show':api.show}" v-for="(api,aidx) in controller.children">
-                    <div class="api-name">
-                        <div class="api-title" @click="handlePick(controllerName+'-'+api.path+'-'+api.method,api)">
-                            <span class="api-method">{{api.method}}</span>
-                            <span class="api-path">{{api.path}}</span>
-                        </div>
-                        <div class="api-main" v-if="api.show" :id="controllerName+'-'+api.path+'-'+api.method">
-                            <div class="api-content" v-if="api.method==='POST'">content-type : {{api.contentType}}</div>
-                            <div class="api-params" v-if="api.method==='POST'&&api.contentType==='application/json'">
-                                <textarea class="request-json" name="" id="" cols="30" rows="10" v-model="api.requestParam"></textarea>
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!-- <script src="https://unpkg.com/vue@next"></script> -->
+        <script src="js/vue.js"></script>
+        <link rel="stylesheet" href="css/style.css">
+        <title>Api-Document</title>
+    </head>
+
+    <body>
+        <div class="rain-doc">api-document beta 0.0.1</div>
+        <div id="app">
+            <div class="container">
+                <div class="controller" v-for="(controller, controllerName, cidx) in controllers">
+                    <div class="controller-name">{{ controllerName }}</div>
+                    <div class="api" :class="{ 'api-show': api.show }" v-for="(api, aidx) in controller.children">
+                        <div class="api-name">
+                            <div class="api-title"
+                                @click="handlePick(controllerName + '-' + api.path + '-' + api.method, api)">
+                                <span class="api-method">{{ api.method }}</span>
+                                <span class="api-path">{{ api.path }}</span>
                             </div>
-                            <div class="api-params" v-else>
-                                <div class="params-title">params</div>
-                                <div class="api-param" style="justify-content: space-between"
-                                    v-for="(param,pidx) in api.params">
-                                    <div class="api-param">
-                                        <span class="param-name">{{param.paramName}}</span>
-                                        <input class="param-value" type="text" v-model="param.value">
+                            <div class="api-main" v-if="api.show"
+                                :id="controllerName + '-' + api.path + '-' + api.method">
+                                <div class="api-content" v-if="api.method === 'POST'">content-type : {{ api.contentType
+                                }}
+                                </div>
+                                <div class="api-params"
+                                    v-if="api.method === 'POST' && api.contentType === 'application/json'">
+                                    <textarea class="request-json" name="" id="" cols="30" rows="10"
+                                        v-model="api.requestParam"></textarea>
+                                </div>
+                                <div class="api-params" v-else>
+                                    <div class="params-title">params</div>
+                                    <div class="api-param" style="justify-content: space-between"
+                                        v-for="(param, pidx) in api.params">
+                                        <div class="api-param">
+                                            <span class="param-name">{{ param.paramName }}</span>
+                                            <input type="file" v-if="param.paramType == 'file'"
+                                                @change="handleChangeFile($event, param)">
+                                            <input class="param-value" v-else type="text" v-model="param.value">
+                                        </div>
+                                        <span class="param-type">{{ param.paramType }}</span>
                                     </div>
-                                    <span class="param-type">{{param.paramType}}</span>
                                 </div>
-                            </div>
-                            <div class="api-response">
-                                <div class="respo">
-                                    <div class="response-title">
-                                        <span>response</span>
-                                        <span v-if="api.loading==='loading'" class="icon-loading"></span>
-                                        <span v-else-if="api.loading==='finish'" class="status-success">√</span>
-                                        <span v-else-if="api.loading==='error'" class="status-fail">x</span>
+                                <div class="api-response">
+                                    <div class="respo">
+                                        <div class="response-title">
+                                            <span>response</span>
+                                            <span v-if="api.loading === 'loading'" class="icon-loading"></span>
+                                            <span v-else-if="api.loading === 'finish'" class="status-success">√</span>
+                                            <span v-else-if="api.loading === 'error'" class="status-fail">x</span>
+                                        </div>
+                                    </div>
+                                    <div class="response-content"
+                                        :class="{ 'response-content-loading': api.loading === 'loading' }">
+                                        <json-show :json="api.response" />
                                     </div>
                                 </div>
-                                <div class="response-content"
-                                    :class="{'response-content-loading':api.loading==='loading'}">
-                                    <json-show :json="api.response" />
-                                </div>
+                                <button class="try-button" @click="send(api, controller)">send</button>
                             </div>
-                            <button class="try-button" @click="send(api,controller)">send</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    <script src="js/main.js"></script>
-</body>
+        <script src="js/main.js"></script>
+    </body>
 
-</html>
+    </html>

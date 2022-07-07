@@ -1,7 +1,7 @@
 import ApplicationServe, { PathMember } from './ApplicationServe.ts'
 
 class Scanner {
-    private basePath: string = "..";
+    private basePath = "..";
     private containerMap: Map<Object, any>;
     private pathMap: Map<string, PathMember>;
     private applicationServe: ApplicationServe;
@@ -30,9 +30,9 @@ class Scanner {
 
     private async loadFile(path: string, fileName: string) {
         if (/.ts$/.test(fileName)) {
-            const ClassModule = await import(this.basePath + path);
+            const ClassModule = await import(this.basePath+path);
             const Clazz = ClassModule.default;
-            if (Clazz && Clazz.prototype && Clazz.prototype.constructor === Clazz && typeof Clazz === 'function') {
+            if (Clazz?.prototype?.constructor === Clazz && typeof Clazz === 'function') {
                 const instance = new Clazz();
                 this.containerMap.get(Clazz.prototype) && this.containerMap.set(Clazz.prototype, instance);
                 const mapper = this.pathMap.get(Clazz.prototype.constructor.name);
@@ -44,16 +44,24 @@ class Scanner {
         }
     }
 
-    private async addFileListener() {
-        let isModiefing = false;
-        const watcher = Deno.watchFs("src");
-        for await (const event of watcher) {
-            if (!isModiefing) {
-                isModiefing = true;
-            }
-            // console.log(">>>> event", event);
-        }
-    }
+    // private async addFileListener() {
+    //     let isModiefing = false;
+    //     const watcher = Deno.watchFs("src");
+    //     let timer = 0;
+    //     let modifyFilePathList = new Set<string>();
+    //     for await (const event of watcher) {
+    //         event.paths.forEach(path =>
+    //             modifyFilePathList.add(path)
+    //         );
+    //         if (timer) {
+    //             clearTimeout(timer);
+    //         } else {
+    //             timer = setTimeout(() => {
+                    
+    //             }, 1000)
+    //         }
+    //     }
+    // }
 }
 
 export default Scanner;

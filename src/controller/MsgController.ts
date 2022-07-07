@@ -1,4 +1,4 @@
-import { Controller, GetMapping, PostMapping, Value, AutoWired, Param } from '../../rain/index.ts';
+import { Controller, GetMapping, Param } from '../../rain/index.ts';
 
 @Controller("/msg")
 class MsgController {

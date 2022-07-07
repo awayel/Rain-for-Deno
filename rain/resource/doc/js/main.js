@@ -77,6 +77,7 @@ const app = Vue.createApp({
                                 formData.append(param.paramName, Number(param.value));
                             } else {
                                 formData.append(param.paramName, param.value);
+                                console.log(param.value);
                             }
                         })
                     fetch(url, {
@@ -125,6 +126,9 @@ const app = Vue.createApp({
         },
         handlePick(domId, api) {
             api.show = !api.show;
+        },
+        handleChangeFile(event, param) {
+            param.value = event.target.files[0] ? event.target.files[0] : null;
         }
     }
 })

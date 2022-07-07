@@ -2,7 +2,9 @@
     "port": 8015,
     "static": {
         "enable": true,
-        "index": "/index.html"
+        "index": "/index.html",
+        "profile": "/product-publish",
+        "isSinglePageApplication": true
     },
     "doc": {
         "enable": true

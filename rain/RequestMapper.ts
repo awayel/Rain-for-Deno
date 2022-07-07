@@ -11,6 +11,9 @@ class RequestMapper {
     private staticIndex: string;
     private docURL: string;
     private docEnable: boolean;
+    private profile: string;
+    private staticFileCache = new Map<string, Uint8Array>();
+    private isSinglePageApplication: boolean;
     constructor(ApplicationServe: ApplicaitionContainer, staticeDir?: string) {
         staticeDir && (this.staticeDir = staticeDir);
         const staticSource = ApplicationServe.getConfiguration().static;
@@ -20,6 +23,8 @@ class RequestMapper {
         this.pathMap = ApplicationServe.getPathMap();
         this.docEnable = ApplicationServe.getConfiguration().doc.enable;
         this.docURL = ApplicationServe.getConfiguration().doc.url;
+        this.profile = ApplicationServe.getConfiguration().static.profile;
+        this.isSinglePageApplication = ApplicationServe.getConfiguration().static.isSinglePageApplication;
     }
 
     //参数类型转换
@@ -55,40 +60,14 @@ class RequestMapper {
         let body: any = {};
         if (method === "POST") {
             if (contentType === "application/json") {
-                const stream = await req.body?.getReader().read();
-                if (stream?.value) {
-                    const json = this.decoder.decode(stream?.value);
-                    try {
-                        body =JSON.parse(JSON.parse(json));
-                        // body = JSON.parse(json);
-                    } catch (error) {
-                        throw new Error("JSON error: " + json);
-                    }
-                    // RequestMapper.mapParams(body, paramsMap, paramsList);                  
-                    paramsList.push(body);
-                }
+                body = await req.json();
+                paramsList.push(body);
             } else if (contentType === "multipart/form-data") {
-                const stream = await req.body?.getReader().read();
-                if (stream?.value) {
-                    const bodyString = this.decoder.decode(stream?.value);
-                    const boundary = bodyString.match(/^[\w\d-=]+/)![0];
-                    if (boundary) {
-                        const regString = `(?<=Content-Disposition:\\sform-data;\\sname="[a-zA-Z_$][a-zA-Z0-9]*"\\s+).*(?=\\s+${boundary})`;
-                        const valueRegExp = new RegExp(regString, 'g');
-                        const values = bodyString.match(valueRegExp);
-                        const keyRegExp = /(?<=Content-Disposition:\sform-data;\sname=")[a-zA-Z_$][a-zA-Z0-9]*(?="\s+)/g
-                        const keys = bodyString.match(keyRegExp);
-                        if (keys && values) {
-                            for (let i = 0; i < keys.length; i++) {
-                                const key = keys[i];
-                                body[key] = values[i];
-                            }
-                            RequestMapper.mapParams(body, paramsMap, paramsList);
-                        }
-                    } else {
-                        throw new Error("Request error: no boundary found in request [ multipart/form-data ]");
-                    }
-                }
+                const formData = await req.formData();
+                formData.forEach((value, key) => {
+                    body[key] = value;
+                })
+                RequestMapper.mapParams(body, paramsMap, paramsList);
             }
         }
         const queryStringReg = /(?<=^(https?|ws):\/\/?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?((\/\w+)+\/?)?\?)([\w$_]+(=[%\w.]+)?&?)+$/g;
@@ -106,7 +85,6 @@ class RequestMapper {
             }
             RequestMapper.mapParams(body, paramsMap, paramsList);
         }
-
         return paramsList;
     }
 
@@ -115,10 +93,10 @@ class RequestMapper {
         const { method, url } = req;
         // 参数数组
         const mapper = this.rainContainer.get("#" + method + "#" + path);
-        let result: Object;
+        let result: any;
         if (mapper) {
             try {
-                const paramsList = await this.getRequestParams(req, mapper.params, mapper.contentType);                
+                const paramsList = await this.getRequestParams(req, mapper.params, mapper.contentType);
                 result = await (mapper.target as any)[mapper.fn](...paramsList);
             } catch (error) {
                 return new Response(error, {
@@ -130,7 +108,11 @@ class RequestMapper {
                 status: 404
             });
         }
-        return new Response(JSON.stringify(result));
+        if (result instanceof File) {
+            return new Response(result);
+        } else {
+            return new Response(JSON.stringify(result));
+        }
     }
 
     //静态资源匹配
@@ -140,17 +122,22 @@ class RequestMapper {
         if (this.docEnable && fileSource.match(/^\/rain-doc\//)) {
             staticeSourcePath = this.basePath + "/rain/resource/doc" + fileSource.replace(/^\/rain-doc/, '');
         } else {
-            staticeSourcePath = this.basePath + this.staticeDir + fileSource;
+            staticeSourcePath = this.basePath + this.staticeDir + fileSource.replace(this.profile, '');
         }
         try {
-            const resource = Deno.readFileSync(staticeSourcePath);
+            let resource: Uint8Array | undefined;
+            resource = this.staticFileCache.get(staticeSourcePath);
+            if (!resource) {
+                resource = Deno.readFileSync(staticeSourcePath);
+                this.staticFileCache.set(staticeSourcePath, resource);
+            }
             const fileType = fileSource.match(/(?<=\.)\w+$/)![0];
             return new Response(resource, {
                 headers: {
                     "content-Type": getFileResourceHeader(fileType)
                 }
             });
-        } catch (error) {
+        } catch {
             return new Response("404 not found", {
                 status: 404
             });
@@ -160,14 +147,18 @@ class RequestMapper {
     //请求处理
     public mapRequest(req: Request) {
         const url = req.url;
-        const urlMatchStaticSource = url.match(/(\/[\w-_]+)+\.\w+$/);
-        // 判断静态资源
+        const urlMatchStaticSource = url.match(/(\/[\w-_]+)+(\.\w+)+$/);
+        //判断静态资源
         if (urlMatchStaticSource) {
             return this.mapStaticSourceRequest(urlMatchStaticSource[0]);
         }
         // 去除queryString
         const queryStringReg = /(?<=^(https?|ws):\/\/?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?((\/[\w-_]+)+\/?)?)\?.*/g;
         const path = url.replace(queryStringReg, "");
+        // 匹配单页面应用
+        if (this.isSinglePageApplication && path.match(this.profile)) {
+            return this.mapStaticSourceRequest("/index.html");
+        }
         // 获取path
         let pathMatchResult = path.match(/(?<=(^(https?|ws):\/\/)?(\w+\.)?(\w+\.\w+|\w+)(:\d+)?)(\/[\w-_]+)*\/?$/ig);
         let mathedPath = ""

@@ -30,6 +30,7 @@ class ApiController {
         @Param("userName") username: string,
         @Param("upwd") upwd: string,
     ) {
+        console.log("123")
         return {
             code: 200,
             message: "获取成功",

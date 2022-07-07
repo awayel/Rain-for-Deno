@@ -28,7 +28,8 @@ class Application {
         serve((req: Request) => {
             return requestMapper.mapRequest(req);
         }, { addr: `:${port}` });
-        console.log(`🌈 Application running at ：%chttp://localhost:${port}/`, "color:#00c920");
+        console.info(`🌈 Application running at ：%chttp://localhost:${port}/`, "color:#00c920");
+        console.info(`🌂 Api document at ：%chttp://localhost:${port}/rain-doc/index.html`, "color:#00c920");
         // console.log(this.ApplicationServe.getRepository());
     }
 }

@@ -16,7 +16,7 @@ interface ParamInfo {
 interface PathMapper {
     target: Object;
     fn: string;
-    contentType:ContentType
+    contentType: ContentType
     params: Map<number, ParamInfo>;
 }
 
@@ -25,6 +25,8 @@ interface ApplicationConfig {
     static?: {
         enable?: boolean;
         index?: string;
+        profile?: string;
+        isSinglePageApplication?: boolean
     };
     doc?: {
         enable?: boolean;
@@ -96,7 +98,9 @@ class ApplicationServe {
         port: 8000,
         static: {
             enable: false,
-            index: "index.html"
+            index: "index.html",
+            profile: "",
+            isSinglePageApplication: false,
         },
         doc: {
             enable: false,
@@ -127,6 +131,8 @@ class ApplicationServe {
         if (configuration.static) {
             configuration.static.enable && (this.configuration.static.enable = configuration.static.enable);
             configuration.static.index && (this.configuration.static.index = configuration.static.index);
+            configuration.static.profile && (this.configuration.static.profile = configuration.static.profile);
+            configuration.static.isSinglePageApplication && (this.configuration.static.isSinglePageApplication = configuration.static.isSinglePageApplication);
         }
         if (configuration.doc) {
             configuration.doc.enable && (this.configuration.doc.enable = configuration.doc.enable);
@@ -160,7 +166,7 @@ class ApplicationServe {
             const daoList: any[] = [];
             for (const key of this.repositoryMap.keys()) {
                 daoList.push(key);
-            }            
+            }
             // daoList.sort(dao=>{
             //     if(typeof dao.prototype ==="")
             // })
@@ -261,7 +267,7 @@ function Configuration<T extends new (...args: any[]) => {}>(constructor: T) {
     configurationMap.set(constructor.prototype, true);
 }
 
-function Param(paramName: string, paramType?: "number" | "string") {
+function Param(paramName: string, paramType?: "number" | "string" | "file") {
     return (proto: any, functionKey: string, paramIndex: number) => {
         const mapper = initPathMapper(pathMap, proto.constructor.name, proto);
         const paramsMap = mapper.getParamsMap();
@@ -316,6 +322,6 @@ export {
     Configuration,
     RequestBody
 };
-export type { MappingMember, ParamInfo, PathMapper, ApplicationConfig,ContentType };
+export type { MappingMember, ParamInfo, PathMapper, ApplicationConfig, ContentType };
 
 export default ApplicationServe;

@@ -1,4 +1,4 @@
-import { Controller, GetMapping, PostMapping, Value, AutoWired, Param,RequestBody} from '../../rain/index.ts';
+import { Controller, PostMapping, AutoWired, Param,RequestBody} from '../../rain/index.ts';
 import UserService from '../service/UserService.ts'
 import User from '../entity/User.ts'
 
@@ -8,7 +8,7 @@ class UserController {
     @AutoWired(UserService)
     private userService!: UserService;
 
-    @PostMapping("/login", "multipart/form-data")
+    @PostMapping("/login","multipart/form-data")
     public async login(@Param('id', 'number') id: number) {
         const user = await this.userService.getInfo(id);
         return {
